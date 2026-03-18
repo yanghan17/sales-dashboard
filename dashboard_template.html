@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Invoice Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --bg:#07090f;
+    --surface:#0e1117;
+    --card:#12161f;
+    --border:#1e2535;
+    --accent:#00e5a0;
+    --accent2:#4f8ef7;
+    --accent3:#f7a24f;
+    --accent4:#e05af0;
+    --text:#e8eaf2;
+    --muted:#6b7594;
+    --danger:#ff4e6a;
+    --mono:'IBM Plex Mono',monospace;
+    --sans:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;overflow-x:hidden}
+  
+  /* ── TOP BAR ── */
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:18px 32px;border-bottom:1px solid var(--border);
+    background:var(--surface);position:sticky;top:0;z-index:100;
+  }
+  .topbar-left{display:flex;align-items:center;gap:14px}
+  .logo-mark{
+    width:36px;height:36px;background:var(--accent);border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:14px;font-weight:700;color:#000;
+  }
+  .topbar h1{font-size:17px;font-weight:700;letter-spacing:.02em}
+  .topbar-right{display:flex;align-items:center;gap:16px}
+  .file-badge{font-family:var(--mono);font-size:10px;color:var(--muted);background:var(--card);border:1px solid var(--border);padding:4px 10px;border-radius:20px}
+  .refresh-btn{
+    background:transparent;border:1px solid var(--accent);color:var(--accent);
+    font-family:var(--mono);font-size:11px;padding:6px 14px;border-radius:20px;
+    cursor:pointer;transition:all .2s;
+  }
+  .refresh-btn:hover{background:var(--accent);color:#000}
+  .gen-time{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+  /* ── YEAR TABS ── */
+  .year-tabs{
+    display:flex;align-items:center;gap:8px;
+    padding:14px 32px;border-bottom:1px solid var(--border);
+    background:var(--surface);overflow-x:auto;
+  }
+  .year-tab{
+    font-family:var(--mono);font-size:11px;padding:6px 16px;border-radius:20px;
+    border:1px solid var(--border);background:transparent;color:var(--muted);
+    cursor:pointer;transition:all .2s;white-space:nowrap;
+  }
+  .year-tab.active,.year-tab:hover{border-color:var(--accent);color:var(--accent)}
+  .year-tab.active{background:rgba(0,229,160,.08)}
+  .tab-label{font-size:10px;color:var(--muted);font-family:var(--mono);margin-right:4px}
+
+  /* ── MAIN LAYOUT ── */
+  .main{padding:28px 32px;display:flex;flex-direction:column;gap:24px}
+
+  /* ── KPI ROW ── */
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}
+  .kpi{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;
+    padding:20px 22px;position:relative;overflow:hidden;transition:border-color .2s;
+  }
+  .kpi:hover{border-color:var(--accent)}
+  .kpi-accent{position:absolute;top:0;left:0;width:3px;height:100%;border-radius:14px 0 0 14px}
+  .kpi-label{font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  .kpi-value{font-size:26px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px}
+  .kpi-sub{font-size:11px;font-family:var(--mono);display:flex;align-items:center;gap:6px}
+  .badge-up{color:var(--accent);background:rgba(0,229,160,.1);padding:2px 7px;border-radius:10px}
+  .badge-dn{color:var(--danger);background:rgba(255,78,106,.1);padding:2px 7px;border-radius:10px}
+  .badge-nu{color:var(--muted);background:rgba(107,117,148,.1);padding:2px 7px;border-radius:10px}
+
+  /* ── SECTION HEADER ── */
+  .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+  .section-title{font-size:13px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;gap:8px}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block}
+
+  /* ── GRID ── */
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+  @media(max-width:1100px){.grid-3{grid-template-columns:1fr 1fr}}
+  @media(max-width:800px){.grid-2,.grid-3{grid-template-columns:1fr}}
+
+  /* ── CHART CARD ── */
+  .chart-card{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;
+  }
+  .chart-card .section-header{margin-bottom:20px}
+  .chart-wrap{position:relative;width:100%}
+  .chart-wrap canvas{width:100%!important}
+
+  /* ── SALESMAN TABLE ── */
+  .table-card{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;padding:22px;overflow:hidden;
+  }
+  .dash-table{width:100%;border-collapse:collapse;font-size:13px}
+  .dash-table thead th{
+    font-family:var(--mono);font-size:10px;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.06em;padding:0 16px 12px;text-align:left;border-bottom:1px solid var(--border);
+    white-space:nowrap;
+  }
+  .dash-table tbody td{padding:12px 16px;border-bottom:1px solid rgba(30,37,53,.6);vertical-align:middle}
+  .dash-table tbody tr:last-child td{border-bottom:none}
+  .dash-table tbody tr:hover td{background:rgba(255,255,255,.015)}
+  .rank-badge{
+    width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:10px;font-weight:700;
+  }
+  .rank-1{background:rgba(247,162,79,.15);color:var(--accent3)}
+  .rank-2{background:rgba(79,142,247,.15);color:var(--accent2)}
+  .rank-3{background:rgba(0,229,160,.15);color:var(--accent)}
+  .rank-n{background:var(--surface);color:var(--muted)}
+  .progress-wrap{width:100%;background:var(--bg);border-radius:4px;height:5px;overflow:hidden}
+  .progress-bar{height:100%;border-radius:4px;background:var(--accent);transition:width .4s ease}
+  .text-muted{color:var(--muted);font-size:11px;font-family:var(--mono)}
+  .text-mono{font-family:var(--mono);font-size:12px}
+  .text-right{text-align:right}
+  .growth-pos{color:var(--accent);font-family:var(--mono);font-size:11px}
+  .growth-neg{color:var(--danger);font-family:var(--mono);font-size:11px}
+  .growth-neu{color:var(--muted);font-family:var(--mono);font-size:11px}
+  .agent-name{font-weight:600;font-size:13px}
+  
+  /* ── HEATMAP ── */
+  .heatmap-grid{display:grid;gap:4px}
+  .heatmap-row{display:grid;gap:4px;align-items:center}
+  .heatmap-cell{
+    height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:9px;cursor:default;transition:transform .15s;
+  }
+  .heatmap-cell:hover{transform:scale(1.05);z-index:2}
+  .heatmap-year-label{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:right;padding-right:8px}
+  .heatmap-month-labels{display:grid;gap:4px;margin-left:0}
+  .heatmap-month-label{text-align:center;font-family:var(--mono);font-size:9px;color:var(--muted)}
+
+  /* ── FULL WIDTH ── */
+  .full{grid-column:1/-1}
+
+  /* ── SCROLLABLE TABLE ── */
+  .table-scroll{overflow-x:auto;max-height:340px;overflow-y:auto}
+  .table-scroll::-webkit-scrollbar{width:4px;height:4px}
+  .table-scroll::-webkit-scrollbar-track{background:transparent}
+  .table-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+  /* ── FOOTER ── */
+  .footer{padding:20px 32px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+  .footer span{font-family:var(--mono);font-size:10px;color:var(--muted)}
+
+  /* ── TOOLTIP OVERRIDE ── */
+  .chartjs-tooltip-custom{
+    background:var(--card)!important;border:1px solid var(--border)!important;
+    border-radius:10px!important;font-family:var(--mono)!important;font-size:11px!important;
+  }
+
+  /* loading */
+  .loading-overlay{
+    position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;z-index:999;transition:opacity .4s;
+  }
+  .spinner{width:40px;height:40px;border:3px solid var(--border);border-top-color:var(--accent);
+    border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .load-text{margin-top:16px;font-family:var(--mono);font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loader">
+  <div class="spinner"></div>
+  <div class="load-text">Loading dashboard…</div>
+</div>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">IV</div>
+    <h1>Invoice Analytics</h1>
+  </div>
+  <div class="topbar-right">
+    <span class="file-badge" id="fileLabel">—</span>
+    <span class="gen-time" id="genTime">—</span>
+    <button class="refresh-btn" onclick="location.reload()">↺ Refresh</button>
+  </div>
+</div>
+
+<div class="year-tabs" id="yearTabs">
+  <span class="tab-label">YEAR</span>
+</div>
+
+<div class="main" id="mainContent">
+
+  <!-- KPI ROW -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- MONTHLY REVENUE + YEARLY -->
+  <div class="grid-2">
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title"><span class="dot"></span>Monthly Revenue</div>
+        <span class="text-muted" id="monthlyYearLabel">—</span>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartMonthly"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="section-header">
+        <div class="section-title"><span class="dot" style="background:var(--accent2)"></span>Yearly Revenue</div>
+      </div>
+      <div class="chart-wrap" style="height:220px"><canvas id="chartYearly"></canvas></div>
+    </div>
+  </div>
+
+  <!-- SALESMAN MONTHLY STACKED + TABLE -->
+  <div class="chart-card">
+    <div class="section-header">
+      <div class="section-title"><span class="dot" style="background:var(--accent3)"></span>Salesman Monthly Contribution</div>
+      <span class="text-muted" id="smMonthlyLabel">—</span>
+    </div>
+    <div class="chart-wrap" style="height:240px"><canvas id="chartSmMonthly"></canvas></div>
+  </div>
+
+  <!-- SALESMAN LEADERBOARD -->
+  <div class="table-card">
+    <div class="section-header">
+      <div class="section-title"><span class="dot" style="background:var(--accent4)"></span>Salesman Performance</div>
+      <span class="text-muted" id="smTableLabel">—</span>
+    </div>
+    <div class="table-scroll">
+      <table class="dash-table" id="salesmanTable">
+        <thead>
+          <tr>
+            <th>#</th><th>Agent</th><th>Revenue</th><th>vs Last Year</th>
+            <th>Orders</th><th>Customers</th><th>Avg Order</th><th>Share</th>
+          </tr>
+        </thead>
+        <tbody id="salesmanBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TOP CUSTOMERS + TOP PRODUCTS -->
+  <div class="grid-2">
+    <div class="table-card">
+      <div class="section-header">
+        <div class="section-title"><span class="dot" style="background:var(--accent2)"></span>Top 10 Customers</div>
+      </div>
+      <div class="table-scroll">
+        <table class="dash-table" id="custTable">
+          <thead><tr><th>#</th><th>Customer</th><th>Revenue</th><th>Orders</th></tr></thead>
+          <tbody id="custBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="table-card">
+      <div class="section-header">
+        <div class="section-title"><span class="dot" style="background:var(--accent3)"></span>Top 10 Products</div>
+      </div>
+      <div class="table-scroll">
+        <table class="dash-table" id="itemTable">
+          <thead><tr><th>#</th><th>Item</th><th>Revenue</th><th>Qty</th></tr></thead>
+          <tbody id="itemBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="chart-card">
+    <div class="section-header">
+      <div class="section-title"><span class="dot" style="background:var(--accent)"></span>Revenue Heatmap (All Years × Month)</div>
+    </div>
+    <div id="heatmapWrap"></div>
+  </div>
+
+  <!-- MONTHLY SUMMARY TABLE -->
+  <div class="table-card">
+    <div class="section-header">
+      <div class="section-title"><span class="dot" style="background:var(--muted)"></span>Monthly Summary (All Time)</div>
+    </div>
+    <div class="table-scroll">
+      <table class="dash-table" id="monthlySummTable">
+        <thead><tr><th>Month</th><th>Revenue</th><th>Orders</th><th>Unique Customers</th></tr></thead>
+        <tbody id="monthlySummBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <span>Invoice Analytics Dashboard</span>
+  <span id="footerTime">—</span>
+</div>
+
+<script>
+const RAW = __DATA_PLACEHOLDER__;
+let DATA = RAW;
+let charts = {};
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const PALETTE = ['#00e5a0','#4f8ef7','#f7a24f','#e05af0','#f74f4f','#4ff7f0','#f7f04f','#a04ff7','#4ff780','#f74fa0'];
+
+function fmt(n){
+  if(n==null||isNaN(n)) return '—';
+  if(n>=1000000) return 'RM '+(n/1000000).toFixed(2)+'M';
+  if(n>=1000) return 'RM '+(n/1000).toFixed(1)+'K';
+  return 'RM '+n.toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtN(n){return n==null?'—':n.toLocaleString()}
+function growthBadge(g){
+  if(g==null||g===0) return `<span class="badge-nu">—</span>`;
+  const sign = g>0?'+':'';
+  return g>0?`<span class="badge-up">${sign}${g}%</span>`:`<span class="badge-dn">${g}%</span>`;
+}
+function growthText(g){
+  if(g==null) return `<span class="growth-neu">—</span>`;
+  const sign=g>0?'▲':'▼';
+  if(g>0) return `<span class="growth-pos">${sign} ${g}%</span>`;
+  if(g<0) return `<span class="growth-neg">${sign} ${Math.abs(g)}%</span>`;
+  return `<span class="growth-neu">—</span>`;
+}
+
+function destroyChart(id){
+  if(charts[id]){charts[id].destroy();delete charts[id];}
+}
+
+const chartDefaults = {
+  responsive:true,maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{
+    backgroundColor:'#12161f',borderColor:'#1e2535',borderWidth:1,
+    titleFont:{family:"'Space Mono',monospace",size:11},
+    bodyFont:{family:"'Space Mono',monospace",size:11},
+    padding:12,cornerRadius:8,
+  }},
+  scales:{
+    x:{grid:{color:'rgba(30,37,53,0.6)'},ticks:{color:'#6b7594',font:{family:"'IBM Plex Mono',monospace",size:10}}},
+    y:{grid:{color:'rgba(30,37,53,0.6)'},ticks:{color:'#6b7594',font:{family:"'IBM Plex Mono',monospace",size:10},
+      callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v}}
+  }
+};
+
+// ── RENDER KPIs ─────────────────────────────────────────────────────────────
+function renderKPIs(d){
+  const k = d.kpis;
+  const isAll = d.meta.selected_year === 'all';
+  const cy = d.meta.current_year;
+  const kpis = isAll ? [
+    {label:'Total Revenue (All Time)', value:fmt(k.total_revenue),    sub:'All years combined',               accent:'var(--accent)',  badge:''},
+    {label:'Total Invoices (All Time)',value:fmtN(k.total_invoices),  sub:`${cy} only: ${fmtN(k.cy_invoices)}`, accent:'var(--accent2)', badge:''},
+    {label:'Avg Order Value (All Time)',value:fmt(k.all_avg_order),   sub:'across all years',                 accent:'var(--accent3)', badge:''},
+    {label:'Unique Customers',          value:fmtN(k.unique_customers),sub:'all time, all years',             accent:'var(--accent4)', badge:''},
+    {label:`Latest Year (${cy})`,       value:fmt(k.cy_revenue),      sub:`vs ${cy-1}: ${k.py_revenue>0?fmt(k.py_revenue):'n/a'}`, accent:'var(--accent)', badge:growthBadge(k.revenue_growth)},
+  ] : [
+    {label:`Revenue ${cy}`,        value:fmt(k.cy_revenue),      sub:`vs ${cy-1}: ${k.py_revenue>0?fmt(k.py_revenue):'n/a'}`, accent:'var(--accent2)', badge:growthBadge(k.revenue_growth)},
+    {label:`Invoices ${cy}`,       value:fmtN(k.cy_invoices),    sub:`All time: ${fmtN(k.total_invoices)}`,   accent:'var(--accent3)', badge:''},
+    {label:'Avg Order Value',      value:fmt(k.avg_order_value), sub:`Based on ${cy}`,                        accent:'var(--accent4)', badge:''},
+    {label:'Unique Customers',     value:fmtN(k.unique_customers),sub:`in ${cy}`,                            accent:'var(--accent)',  badge:''},
+    {label:'Total Revenue (All)',  value:fmt(k.total_revenue),   sub:'full history',                          accent:'var(--accent)',  badge:''},
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(kpi=>`
+    <div class="kpi">
+      <div class="kpi-accent" style="background:${kpi.accent}"></div>
+      <div class="kpi-label">${kpi.label}</div>
+      <div class="kpi-value" style="color:${kpi.accent}">${kpi.value}</div>
+      <div class="kpi-sub">${kpi.sub} ${kpi.badge}</div>
+    </div>
+  `).join('');
+}
+
+// ── MONTHLY CHART ────────────────────────────────────────────────────────────
+function renderMonthly(d){
+  const isAll = d.meta.selected_year === 'all';
+  document.getElementById('monthlyYearLabel').textContent = isAll ? 'All Years by Month' : d.meta.current_year;
+  destroyChart('monthly');
+  const ctx = document.getElementById('chartMonthly').getContext('2d');
+
+  if(isAll){
+    // Show each year as a separate line across 12 months
+    const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const years = d.meta.years;
+    const datasets = years.map((yr,i)=>{
+      const yrRows = d.monthly_summary.filter(r=>r.year===yr);
+      const vals = monthLabels.map((_,mi)=>{
+        const row = yrRows.find(r=>r.month===mi+1);
+        return row ? row.revenue : 0;
+      });
+      return {
+        label:String(yr), data:vals,
+        borderColor:PALETTE[i%PALETTE.length],
+        backgroundColor:PALETTE[i%PALETTE.length]+'22',
+        borderWidth:i===years.length-1?2:1.5,
+        tension:0.4, pointRadius:2, fill:false,
+      };
+    });
+    charts.monthly = new Chart(ctx,{
+      type:'line',
+      data:{labels:monthLabels, datasets},
+      options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:true,position:'top',labels:{color:'#8892a4',font:{family:"'IBM Plex Mono',monospace",size:10},boxWidth:10,padding:12}}}}
+    });
+  } else {
+    const hasPY = d.monthly.py_values && d.monthly.py_values.some(v=>v>0);
+    charts.monthly = new Chart(ctx,{
+      type:'bar',
+      data:{
+        labels:d.monthly.labels,
+        datasets:[
+          hasPY?{label:`${d.meta.current_year-1}`,data:d.monthly.py_values,backgroundColor:'rgba(107,117,148,0.25)',borderColor:'rgba(107,117,148,0.4)',borderWidth:1,borderRadius:4,order:2}:null,
+          {label:`${d.meta.current_year}`,data:d.monthly.values,backgroundColor:'rgba(0,229,160,0.2)',borderColor:'#00e5a0',borderWidth:1.5,borderRadius:6,order:1}
+        ].filter(Boolean)
+      },
+      options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:hasPY,position:'top',labels:{color:'#6b7594',font:{family:"'IBM Plex Mono',monospace",size:10},boxWidth:10}}}}
+    });
+  }
+}
+
+// ── YEARLY CHART ─────────────────────────────────────────────────────────────
+function renderYearly(d){
+  destroyChart('yearly');
+  const ctx = document.getElementById('chartYearly').getContext('2d');
+  charts.yearly = new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:d.yearly.labels,
+      datasets:[{
+        label:'Revenue',data:d.yearly.values,
+        backgroundColor:d.yearly.labels.map((_,i)=>i===d.yearly.labels.length-1?'rgba(79,142,247,0.5)':'rgba(79,142,247,0.2)'),
+        borderColor:'#4f8ef7',borderWidth:1.5,borderRadius:6,
+      }]
+    },
+    options:{...chartDefaults}
+  });
+}
+
+// ── SM MONTHLY STACKED ───────────────────────────────────────────────────────
+function renderSmMonthly(d){
+  const isAll = d.meta.selected_year === 'all';
+  document.getElementById('smMonthlyLabel').textContent = isAll ? 'All Years' : d.meta.current_year;
+  destroyChart('smMonthly');
+
+  if(isAll){
+    // Show each agent's total revenue per year as grouped bars
+    const years = d.meta.years.map(String);
+    const agents = d.sm_monthly_all ? Object.values(d.sm_monthly_all)[0]?.agents || [] : [];
+    if(!agents.length){
+      document.getElementById('chartSmMonthly').parentElement.innerHTML='<p class="text-muted" style="padding:20px">No agent data available</p>';
+      return;
+    }
+    const ctx = document.getElementById('chartSmMonthly').getContext('2d');
+    const datasets = agents.map((ag,i)=>{
+      const vals = years.map(yr=>{
+        const yrData = d.sm_monthly_all[yr];
+        if(!yrData) return 0;
+        const s = yrData.series.find(s=>s.name===ag);
+        return s ? parseFloat(s.data.reduce((a,b)=>a+b,0).toFixed(2)) : 0;
+      });
+      return {label:ag, data:vals, backgroundColor:PALETTE[i%PALETTE.length]+'55', borderColor:PALETTE[i%PALETTE.length], borderWidth:1.5, borderRadius:4};
+    });
+    charts.smMonthly = new Chart(ctx,{
+      type:'bar',
+      data:{labels:years, datasets},
+      options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:true,position:'top',labels:{color:'#8892a4',font:{family:"'IBM Plex Mono',monospace",size:10},boxWidth:10,padding:12}}}}
+    });
+  } else {
+    if(!d.sm_monthly||!d.sm_monthly.agents||d.sm_monthly.agents.length===0){
+      document.getElementById('chartSmMonthly').parentElement.innerHTML='<p class="text-muted" style="padding:20px">No agent data available</p>';
+      return;
+    }
+    const ctx = document.getElementById('chartSmMonthly').getContext('2d');
+    const datasets = d.sm_monthly.series.map((s,i)=>({
+      label:s.name,data:s.data,
+      backgroundColor:PALETTE[i%PALETTE.length]+'33',
+      borderColor:PALETTE[i%PALETTE.length],
+      borderWidth:1.5,fill:true,tension:0.4,pointRadius:3,
+    }));
+    charts.smMonthly = new Chart(ctx,{
+      type:'line',
+      data:{labels:d.sm_monthly.months, datasets},
+      options:{...chartDefaults,plugins:{...chartDefaults.plugins,legend:{display:true,position:'top',labels:{color:'#8892a4',font:{family:"'IBM Plex Mono',monospace",size:10},boxWidth:10,padding:16}}}}
+    });
+  }
+}
+
+// ── SALESMAN TABLE ───────────────────────────────────────────────────────────
+function renderSalesmanTable(d){
+  document.getElementById('smTableLabel').textContent = d.meta.current_year;
+  const sm = d.salesman;
+  if(!sm||sm.length===0){
+    document.getElementById('salesmanBody').innerHTML='<tr><td colspan="8" class="text-muted" style="padding:20px">No agent data</td></tr>';
+    return;
+  }
+  const maxRev = Math.max(...sm.map(r=>r.Revenue));
+  const totalRev = sm.reduce((a,r)=>a+r.Revenue,0);
+  document.getElementById('salesmanBody').innerHTML = sm.map((r,i)=>{
+    const pct = totalRev>0?((r.Revenue/totalRev)*100).toFixed(1):0;
+    const barW = maxRev>0?((r.Revenue/maxRev)*100).toFixed(1):0;
+    const rankCls = i===0?'rank-1':i===1?'rank-2':i===2?'rank-3':'rank-n';
+    return `<tr>
+      <td><div class="rank-badge ${rankCls}">${i+1}</div></td>
+      <td><div class="agent-name">${r.Agent||'—'}</div></td>
+      <td class="text-mono">${fmt(r.Revenue)}</td>
+      <td>${growthText(r.Growth)}</td>
+      <td class="text-mono">${fmtN(r.Orders)}</td>
+      <td class="text-mono">${fmtN(r.Customers)}</td>
+      <td class="text-mono">${fmt(r.AvgOrder)}</td>
+      <td style="min-width:100px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="progress-wrap" style="width:80px"><div class="progress-bar" style="width:${barW}%"></div></div>
+          <span class="text-muted">${pct}%</span>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ── TOP CUSTOMERS ────────────────────────────────────────────────────────────
+function renderCustomers(d){
+  const rows = d.top_customers||[];
+  const max = rows.length>0?rows[0].Revenue:1;
+  document.getElementById('custBody').innerHTML = rows.map((r,i)=>`
+    <tr>
+      <td class="text-muted text-mono">${i+1}</td>
+      <td style="font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r['Debtor Name']||'—'}</td>
+      <td class="text-mono">${fmt(r.Revenue)}</td>
+      <td class="text-muted text-mono">${fmtN(r.Orders)}</td>
+    </tr>
+  `).join('')||'<tr><td colspan="4" class="text-muted">No data</td></tr>';
+}
+
+// ── TOP ITEMS ────────────────────────────────────────────────────────────────
+function renderItems(d){
+  const rows = d.top_items||[];
+  document.getElementById('itemBody').innerHTML = rows.map((r,i)=>`
+    <tr>
+      <td class="text-muted text-mono">${i+1}</td>
+      <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.Item||'—'}</td>
+      <td class="text-mono">${fmt(r.Revenue)}</td>
+      <td class="text-muted text-mono">${fmtN(r.Qty)}</td>
+    </tr>
+  `).join('')||'<tr><td colspan="4" class="text-muted">No data</td></tr>';
+}
+
+// ── HEATMAP ──────────────────────────────────────────────────────────────────
+function renderHeatmap(d){
+  const hm = d.heatmap; if(!hm||hm.length===0) return;
+  const allVals = hm.flatMap(r=>r.months);
+  const maxV = Math.max(...allVals);
+  function cellColor(v){
+    if(v===0) return 'rgba(30,37,53,0.4)';
+    const t = v/maxV;
+    const r = Math.round(0 + t*0);
+    const g = Math.round(50 + t*179);
+    const b = Math.round(50 + t*100);
+    return `rgba(${r},${g},${b},${0.2+t*0.7})`;
+  }
+  const monthLabels = `<div class="heatmap-row" style="grid-template-columns:48px repeat(12,1fr);margin-bottom:4px">
+    <div></div>
+    ${MONTHS.map(m=>`<div class="heatmap-month-label">${m}</div>`).join('')}
+  </div>`;
+  const rows = hm.map(row=>{
+    const cells = row.months.map(v=>`
+      <div class="heatmap-cell" style="background:${cellColor(v)}" title="${fmt(v)}">
+        ${v>0&&v>=maxV*0.3?'<span style="color:#fff;font-size:8px">'+( v>=1000000?(v/1000000).toFixed(1)+'M':v>=1000?(v/1000).toFixed(0)+'K':v.toFixed(0))+'</span>':''}
+      </div>
+    `).join('');
+    return `<div class="heatmap-row" style="grid-template-columns:48px repeat(12,1fr)">
+      <div class="heatmap-year-label">${row.year}</div>
+      ${cells}
+    </div>`;
+  }).join('');
+  document.getElementById('heatmapWrap').innerHTML = monthLabels + rows;
+}
+
+// ── MONTHLY SUMMARY TABLE ─────────────────────────────────────────────────────
+function renderMonthlySummary(d){
+  const rows = (d.monthly_summary||[]).slice().reverse();
+  document.getElementById('monthlySummBody').innerHTML = rows.map(r=>`
+    <tr>
+      <td class="text-mono">${r.label}</td>
+      <td class="text-mono">${fmt(r.revenue)}</td>
+      <td class="text-muted text-mono">${fmtN(r.orders)}</td>
+      <td class="text-muted text-mono">${fmtN(r.customers)}</td>
+    </tr>
+  `).join('');
+}
+
+// ── ALL-YEARS AGGREGATION HELPERS ────────────────────────────────────────────
+function buildAllYearsSalesman(raw){
+  if(!raw.salesman_all) return raw.salesman;
+  const totals = {};
+  Object.values(raw.salesman_all).forEach(yrList=>{
+    yrList.forEach(s=>{
+      if(!totals[s.Agent]) totals[s.Agent]={Agent:s.Agent,Revenue:0,Orders:0,Customers:0,Growth:null,PrevRevenue:0,AvgOrder:0};
+      totals[s.Agent].Revenue  += s.Revenue;
+      totals[s.Agent].Orders   += s.Orders;
+      totals[s.Agent].Customers = Math.max(totals[s.Agent].Customers, s.Customers);
+    });
+  });
+  return Object.values(totals)
+    .map(s=>({...s, Revenue:parseFloat(s.Revenue.toFixed(2)), AvgOrder:s.Orders>0?parseFloat((s.Revenue/s.Orders).toFixed(2)):0}))
+    .sort((a,b)=>b.Revenue-a.Revenue);
+}
+function buildAllYearsTopCustomers(raw){
+  if(!raw.top_customers_all) return raw.top_customers;
+  const totals = {};
+  Object.values(raw.top_customers_all).forEach(yrList=>{
+    yrList.forEach(r=>{
+      const k = r['Debtor Name'];
+      if(!totals[k]) totals[k]={'Debtor Name':k,Revenue:0,Orders:0};
+      totals[k].Revenue += r.Revenue;
+      totals[k].Orders  += r.Orders;
+    });
+  });
+  return Object.values(totals)
+    .map(r=>({...r,Revenue:parseFloat(r.Revenue.toFixed(2))}))
+    .sort((a,b)=>b.Revenue-a.Revenue).slice(0,10);
+}
+function buildAllYearsTopItems(raw){
+  if(!raw.top_items_all) return raw.top_items;
+  const totals = {};
+  Object.values(raw.top_items_all).forEach(yrList=>{
+    yrList.forEach(r=>{
+      const k = r.Item;
+      if(!totals[k]) totals[k]={Item:k,Revenue:0,Qty:0,Orders:0};
+      totals[k].Revenue += r.Revenue;
+      totals[k].Qty     += r.Qty||0;
+      totals[k].Orders  += r.Orders||0;
+    });
+  });
+  return Object.values(totals)
+    .map(r=>({...r,Revenue:parseFloat(r.Revenue.toFixed(2))}))
+    .sort((a,b)=>b.Revenue-a.Revenue).slice(0,10);
+}
+
+// ── FILTER DATA BY YEAR ───────────────────────────────────────────────────────
+function filterByYear(raw, year){
+  if(year === 'all'){
+    // Build proper all-years aggregated KPIs
+    const allRevenue = raw.kpis.total_revenue;
+    const allInvoices = raw.kpis.total_invoices;
+    const allAvgOrder = allInvoices > 0 ? parseFloat((allRevenue/allInvoices).toFixed(2)) : 0;
+    // All-time unique customers from raw (already computed server-side as all-time)
+    return {
+      ...raw,
+      meta: { ...raw.meta, selected_year: 'all' },
+      kpis: { ...raw.kpis, all_avg_order: allAvgOrder },
+      // salesman all-years: aggregate across all years
+      salesman: buildAllYearsSalesman(raw),
+      top_customers: buildAllYearsTopCustomers(raw),
+      top_items: buildAllYearsTopItems(raw),
+    };
+  }
+
+  const yr = parseInt(year);
+  const prevYr = yr - 1;
+
+  // Helper: filter monthly_summary
+  const monthly_summary = raw.monthly_summary.filter(r => r.year === yr);
+
+  // Helper: filter heatmap to just this year
+  const heatmap = raw.heatmap.filter(r => r.year === yr);
+
+  // Recompute monthly for selected year from monthly_summary
+  const monthOrder = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const cyMonths = {};
+  const pyMonths = {};
+  monthly_summary.forEach(r => { cyMonths[r.month] = r.revenue; });
+  raw.monthly_summary.filter(r => r.year === prevYr).forEach(r => { pyMonths[r.month] = r.revenue; });
+
+  // Only include months that exist in data
+  const presentMonths = monthly_summary.map(r => r.month).sort((a,b)=>a-b);
+  const labels = presentMonths.map(m => monthOrder[m-1]);
+  const values = presentMonths.map(m => cyMonths[m] || 0);
+  const py_values = presentMonths.map(m => pyMonths[m] || 0);
+
+  // KPIs for selected year
+  const cy_revenue = values.reduce((a,b)=>a+b,0);
+  const py_revenue = py_values.reduce((a,b)=>a+b,0);
+  const revenue_growth = py_revenue > 0 ? parseFloat(((cy_revenue - py_revenue)/py_revenue*100).toFixed(1)) : 0;
+  const cy_invoices = monthly_summary.reduce((a,r)=>a+r.orders,0);
+  const avg_order_value = cy_invoices > 0 ? parseFloat((cy_revenue/cy_invoices).toFixed(2)) : 0;
+
+  // Unique customers for year (approximate from monthly_summary — max since customers overlap)
+  const unique_customers = Math.max(...monthly_summary.map(r=>r.customers||0), 0);
+
+  // Use precomputed per-year salesman data
+  const salesman = (raw.salesman_all && raw.salesman_all[String(yr)])
+    ? raw.salesman_all[String(yr)] : raw.salesman;
+
+  // Use precomputed per-year sm_monthly from backend
+  const sm_monthly = (raw.sm_monthly_all && raw.sm_monthly_all[String(yr)])
+    ? raw.sm_monthly_all[String(yr)]
+    : raw.sm_monthly;
+
+  // Use precomputed per-year top lists
+  const top_customers = (raw.top_customers_all && raw.top_customers_all[String(yr)])
+    ? raw.top_customers_all[String(yr)] : raw.top_customers;
+  const top_items = (raw.top_items_all && raw.top_items_all[String(yr)])
+    ? raw.top_items_all[String(yr)] : raw.top_items;
+
+  return {
+    ...raw,
+    meta: { ...raw.meta, current_year: yr, selected_year: String(yr) },
+    kpis: {
+      ...raw.kpis,
+      cy_revenue: parseFloat(cy_revenue.toFixed(2)),
+      py_revenue: parseFloat(py_revenue.toFixed(2)),
+      revenue_growth,
+      cy_invoices,
+      avg_order_value,
+      unique_customers,
+    },
+    monthly: { labels, values, py_values },
+    salesman,
+    sm_monthly,
+    top_customers,
+    top_items,
+    monthly_summary,
+    heatmap,
+  };
+}
+
+// ── YEAR TABS ─────────────────────────────────────────────────────────────────
+function renderYearTabs(raw){
+  const tabs = document.getElementById('yearTabs');
+  tabs.querySelectorAll('.year-tab').forEach(e=>e.remove());
+
+  const allTab = document.createElement('button');
+  allTab.className='year-tab active';allTab.textContent='All Years';allTab.dataset.year='all';
+  tabs.appendChild(allTab);
+
+  raw.meta.years.slice().reverse().forEach(yr=>{
+    const btn = document.createElement('button');
+    btn.className='year-tab';btn.textContent=yr;btn.dataset.year=String(yr);
+    tabs.appendChild(btn);
+  });
+
+  tabs.querySelectorAll('.year-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      tabs.querySelectorAll('.year-tab').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const filtered = filterByYear(raw, btn.dataset.year);
+      renderPanels(filtered);
+    });
+  });
+}
+
+// ── RENDER PANELS (everything except year tabs) ───────────────────────────────
+function renderPanels(d){
+  renderKPIs(d);
+  renderMonthly(d);
+  renderYearly(d);
+  renderSmMonthly(d);
+  renderSalesmanTable(d);
+  renderCustomers(d);
+  renderItems(d);
+  renderHeatmap(d);
+  renderMonthlySummary(d);
+}
+
+// ── MAIN RENDER ──────────────────────────────────────────────────────────────
+function renderAll(raw){
+  document.getElementById('fileLabel').textContent = raw.meta.file;
+  document.getElementById('genTime').textContent = 'Updated: '+raw.meta.generated;
+  document.getElementById('footerTime').textContent = raw.meta.generated;
+  renderYearTabs(raw);
+  // Default to All Years view with proper aggregation
+  renderPanels(filterByYear(raw, 'all'));
+}
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load',()=>{
+  try{
+    renderAll(RAW);
+  } catch(e){
+    console.error(e);
+  }
+  setTimeout(()=>{
+    const loader = document.getElementById('loader');
+    loader.style.opacity='0';
+    setTimeout(()=>loader.style.display='none',400);
+  },500);
+});
+</script>
+</body>
+</html>
