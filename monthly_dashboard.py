@@ -16,7 +16,7 @@ from datetime import datetime
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 _HERE     = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(_HERE, "sales_raw_sample.xlsx")
+DATA_FILE = os.path.join(_HERE, "your_file.xlsx")
 PORT      = 5051
 VIEW_YEAR = None   # ← set to a specific year e.g. 2025, or None for latest year
 # ───────────────────────────────────────────────────────────────────────────────

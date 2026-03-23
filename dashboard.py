@@ -17,7 +17,7 @@ from datetime import datetime
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
 _HERE = os.path.dirname(os.path.abspath(__file__))
-DATA_FILE = os.path.join(_HERE, "sales_raw_sample.xlsx")   # ← change filename here
+DATA_FILE = os.path.join(_HERE, "your_file.xlsx")   # ← change filename here
 PORT = 5050
 # ───────────────────────────────────────────────────────────────────────────────
 
