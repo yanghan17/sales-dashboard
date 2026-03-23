@@ -173,7 +173,7 @@ This dashboard is Plan A of a three-tier commercial product:
 - **Plan B** — Customer risk flags, last order date tracking, SKU-level trends, churn early warning
 - **Plan C** — AI integration via Claude API, proactive Telegram alerts, natural language queries
 
-Plan C builds on [BizBot](https://github.com/yanghan17/bizbot) — a separate repo implementing the AI and Telegram layer.
+Plan C builds on [BizBot](https://github.com/yanghan17/bizbot) (coming soon) — a separate repo implementing the AI and Telegram layer.
 
 ---
 
