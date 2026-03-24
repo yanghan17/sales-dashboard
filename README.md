@@ -41,7 +41,7 @@ This dashboard changes that. Point it at an Excel export, launch it, and get a f
 - **Daily Summary Table** — Every trading day with DoD comparison
 - **Transaction Log** — Latest 200 rows for full auditability
 
-https://github.com/user-attachments/assets/e3371b0d-9e6f-4965-be60-bcdeda607587
+https://github.com/user-attachments/assets/21db01c3-4cc7-4e51-ad6d-d87901effcf7
 
 ---
 
